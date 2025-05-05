@@ -57,7 +57,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	int ret = nfq_get_payload(nfa, &pkt);
     if (ret >= 0) {
 		printf("payload_len=%d\n", ret);
-		dump(data, ret);
+		dump(pkt, ret);
 	}
 
     IpHdr *ip = (IpHdr *)pkt;
