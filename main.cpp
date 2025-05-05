@@ -21,6 +21,16 @@ void usage() {
     printf("sample : netfilter-test test.gilgil.net\n");
 }
 
+void dump(unsigned char* buf, int size) {
+	int i;
+	for (i = 0; i < size; i++) {
+		if (i != 0 && i % 16 == 0)
+			printf("\n");
+		printf("%02X ", buf[i]);
+	}
+	printf("\n");
+}
+
 static string host;
 
 static uint32_t print_pkt (struct nfq_data *tb)
@@ -33,6 +43,7 @@ static uint32_t print_pkt (struct nfq_data *tb)
 		id = ntohl(ph->packet_id);
 	}
 
+
 	return id;
 }
 	
@@ -41,31 +52,21 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	      struct nfq_data *nfa, void *data)
 {
 	uint32_t id = print_pkt(nfa);
-	printf("entering callback\n");
 
     unsigned char *pkt;
 	int ret = nfq_get_payload(nfa, &pkt);
+    if (ret >= 0) {
+		printf("payload_len=%d\n", ret);
+		dump(data, ret);
+	}
 
     IpHdr *ip = (IpHdr *)pkt;
     tcpHdr *tcp = (tcpHdr *)(pkt + sizeof(IpHdr));
     unsigned char *http = (unsigned char *)(pkt + sizeof(IpHdr) + tcp->th_off * 4);
     int http_len = ret - (ip->ip_hl * 4) - (tcp->th_off * 4);
 
-	if (ret <= 0)
-    {
-    	printf("invalid pkt\n");
-        return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-    }
-    if (ip->protocol != IpHdr::TCP)
-    {
-      	printf("not tcp\n");
-        return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-    }
-    if (http_len <= 0)
-    {
-      printf("invalid http\n");
+    if ((ret <= 0) || (ip->protocol != IpHdr::TCP) || (http_len <= 0))
       return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-    }
 
     char *host_field = strstr((char*)http, "\r\nHost: ");
     if (host_field)
@@ -158,7 +159,7 @@ int main(int argc, char **argv)
 
 	for (;;) {
 		if ((rv = recv(fd, buf, sizeof(buf), 0)) >= 0) {
-			printf("\n\npkt received");
+			printf("\n\npkt received\n");
 			nfq_handle_packet(h, buf, rv);
 			continue;
 		}
