@@ -52,12 +52,20 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     int http_len = ret - (ip->ip_hl * 4) - (tcp->th_off * 4);
 
 	if (ret <= 0)
-          return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-
-    if (ip->protocol != IpHdr::TCP)
-		return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-    if (http_len <= 0)
+    {
+    	printf("invalid pkt\n");
         return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+    }
+    if (ip->protocol != IpHdr::TCP)
+    {
+      	printf("not tcp\n");
+        return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+    }
+    if (http_len <= 0)
+    {
+      printf("invalid http\n");
+      return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+    }
 
     char *host_field = strstr((char*)http, "\r\nHost: ");
     if (host_field)
@@ -150,17 +158,10 @@ int main(int argc, char **argv)
 
 	for (;;) {
 		if ((rv = recv(fd, buf, sizeof(buf), 0)) >= 0) {
-			printf("pkt received\n");
+			printf("\n\npkt received");
 			nfq_handle_packet(h, buf, rv);
 			continue;
 		}
-		/* if your application is too slow to digest the packets that
-		 * are sent from kernel-space, the socket buffer that we use
-		 * to enqueue packets may fill up returning ENOBUFS. Depending
-		 * on your application, this error may be ignored. Please, see
-		 * the doxygen documentation of this library on how to improve
-		 * this situation.
-		 */
 		if (rv < 0 && errno == ENOBUFS) {
 			printf("losing packets!\n");
 			continue;
